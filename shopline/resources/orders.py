@@ -19,7 +19,7 @@ class Orders(ShopLineResource):
         return cls.find(from_=url, **kwargs)
 
     @classmethod
-    def orders(cls, prefix_options=None, **kwargs):
+    def orders(cls, **kwargs):
         url = cls.get_base_url("", page=cls.page_size)
         return cls.find(from_=url, **kwargs)
 
