@@ -1,8 +1,8 @@
-from shopline import ShopLineResource
+from ..base import ShopLineResource
 
 
 class Webhooks(ShopLineResource):
-    """products """
+    """webhooks """
     DETAIL = "/webhooks"
 
     def __init__(self):

@@ -87,12 +87,18 @@ class ShopLineResource(mixins.CountMixins):
 
         # Add the id to the URL if provided
         if id_:
-            url = f"{url}&ids={id_}"
+            if "?" in url:
+                url = f"{url}&ids={id_}"
+            else:
+                url = f"{url}?ids={id_}"
 
         # Append query parameters from kwargs
         if kwargs:
-            query_params = "?".join(f"{k}={v}" for k, v in kwargs.items())
-            url = f"{url}?{query_params}"
+            query_params = "&".join(f"{k}={v}" for k, v in kwargs.items())
+            if "?" in url:
+                url = f"{url}&{query_params}"
+            else:
+                url = f"{url}?{query_params}"
 
         print(url)
 
