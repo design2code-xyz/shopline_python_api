@@ -47,11 +47,12 @@ class Session(object):
         yield
         shopline.ShopLineResource.activate_session(original_session)
 
-    def __init__(self, handle, version=None, token=None, access_scopes=None):
+    def __init__(self, handle, version=None, token=None, access_scopes=None, expiration_time=None):
         self.url = self.__prepare_url(handle)
         self.token = token
         self.version = ApiVersion.coerce_to_version(version)
         self.access_scopes = access_scopes
+        self.expiration_time = expiration_time
         return
 
     def create_permission_url(self, scope, redirect_uri, responseType="code"):
@@ -97,7 +98,8 @@ class Session(object):
                 # print(json_payload)
                 self.token = data["accessToken"]
                 self.access_scopes = data["scope"]
-                return self.token
+                self.expiration_time = data["expireTime"]
+                return self.token, self.access_scopes, self.expiration_time
             else:
                 raise Exception("{}:{}".format(json_payload.get("i18nCode"), json_payload.get("message")))
         else:
@@ -116,7 +118,8 @@ class Session(object):
                 # print(json_payload)
                 self.token = data["accessToken"]
                 self.access_scopes = data["scope"]
-                return self.token
+                self.expiration_time = data["expireTime"]
+                return self.token, self.access_scopes, self.expiration_time
             else:
                 raise Exception("{}:{}".format(json_payload.get("i18nCode"), json_payload.get("message")))
         else:
@@ -138,7 +141,8 @@ class Session(object):
                 # print(json_payload)
                 self.token = data["accessToken"]
                 self.access_scopes = data["scope"]
-                return self.token
+                self.expiration_time = data["expireTime"]
+                return self.token, self.access_scopes, self.expiration_time
             else:
                 raise Exception("{}:{}".format(json_payload.get("i18nCode"), json_payload.get("message")))
         else:

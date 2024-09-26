@@ -1,3 +1,5 @@
+import json
+
 import shopline.mixins as mixins
 import threading
 from .connection import Connection
@@ -19,14 +21,26 @@ class ShopLineResource(mixins.CountMixins):
         super().__init__()
 
     @classmethod
-    def get_base_url(cls, details, **kwargs):
+    def get_base_url(cls, details, id_=None, **kwargs):
         item = cls.__dict__.get("__module__").rsplit(".")[-1]
         if kwargs.get("item") is not None:
             item = kwargs.get("item")
         if kwargs.get("page"):
-            url = "https://{url}{version}/{item}{detail}.json?limit={pagesize}".format(url=cls._url, version=cls._version._path, item=item, detail=details, pagesize=kwargs.get("page"))
+            url = "https://{url}{version}/{item}{detail}.json?limit={pagesize}".format(url=cls._url,
+                                                                                       version=cls._version._path,
+                                                                                       item=item,
+                                                                                       detail=details,
+                                                                                       pagesize=kwargs.get("page"))
+
+        elif id_ is not None:
+            url = "https://{url}{version}/{id}/{item}{detail}.json?limit={pagesize}".format(url=cls._url,
+                                                                                       version=cls._version._path,
+                                                                                       item=item, detail=details,
+                                                                                       pagesize=kwargs.get("page"),
+                                                                                       id=id_)
         else:
-            url = "https://{url}{version}/{item}{detail}.json".format(url=cls._url, version=cls._version._path, item=item, detail=details)
+            url = "https://{url}{version}/{item}{detail}.json".format(url=cls._url, version=cls._version._path,
+                                                                      item=item, detail=details)
 
         return url
 
@@ -67,18 +81,75 @@ class ShopLineResource(mixins.CountMixins):
         """Checks the resulting collection for pagination metadata."""
         if not from_:
             return None
+
+        # Construct the base URL
         url = from_
+
+        # Add the id to the URL if provided
+        if id_:
+            url = f"{url}&ids={id_}"
+
+        # Append query parameters from kwargs
+        if kwargs:
+            query_params = "?".join(f"{k}={v}" for k, v in kwargs.items())
+            url = f"{url}?{query_params}"
+
         print(url)
-        prefix_options = {}
+
         response = cls.connect.get(url, cls.get_headers())
         objs = cls.format.decode(response.body)
         print(objs)
+
         if not objs:
             return objs
+
+        prefix_options = {}
         collection = cls._build_collection(objs, prefix_options, response.headers)
+
         if isinstance(collection, Collection) and "headers" in collection.metadata:
             return PaginatedCollection(collection, metadata={"resource_class": cls}, **kwargs)
+
         return collection
+
+    @classmethod
+    def create(cls, data, from_=None):
+        """Create a new resource with the provided data."""
+        if not from_:
+            return None
+
+        url = from_
+        print(f"Creating resource at {url} with data: {data}")
+
+        # Send POST request with the data to create a new resource
+        response = cls.connect.post(url, data, cls.get_headers())
+
+        if response.code == 200:
+            json_payload = json.loads(response.read().decode("utf-8"))
+            if json_payload.get("code") == 200:
+                print('json', json_payload)
+                data = json_payload
+
+        return data
+
+    @classmethod
+    def delete(cls, id_, from_=None):
+        """Delete a resource by its ID."""
+        if not from_ or not id_:
+            return None
+
+        # Construct URL with the ID
+        url = from_
+        print(f"Deleting resource at {url}")
+
+        # Send DELETE request to the resource URL
+        response = cls.connect.delete(url, cls.get_headers())
+
+        if response.status_code != 200:
+            print(f"Failed to delete resource {id_}. Status code: {response.status_code}")
+            return False
+        else:
+            print(f"Resource {id_} deleted successfully.")
+            return True
 
     @classmethod
     def _build_collection(cls, elements, prefix_options=None, headers={}):
