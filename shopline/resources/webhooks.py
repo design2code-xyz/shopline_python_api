@@ -16,9 +16,9 @@ class Webhooks(ShopLineResource):
     @classmethod
     def create_webhook(cls, **kwargs):
         url = cls.get_base_url(cls.DETAIL)
-        return cls.create(from_=url, **kwargs)
+        return cls.create(from_=url, data=kwargs)
 
     @classmethod
     def delete_webhook(cls, id_=None, **kwargs):
-        url = cls.get_base_url(cls.DETAIL, id_=id_)
+        url = cls.get_base_url(cls.DETAIL, id_=id_, delete=True)
         return cls.delete(from_=url, id_=id_)
