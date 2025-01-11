@@ -47,20 +47,21 @@ class Session(object):
         yield
         shopline.ShopLineResource.activate_session(original_session)
 
-    def __init__(self, handle, version=None, token=None, access_scopes=None):
+    def __init__(self, handle, version=None, token=None, access_scopes=None, expiration_time=None):
         self.url = self.__prepare_url(handle)
         self.token = token
         self.version = ApiVersion.coerce_to_version(version)
         self.access_scopes = access_scopes
+        self.expiration_time = expiration_time
         return
 
     def create_permission_url(self, scope, redirect_uri, responseType="code"):
         """get permission url by Herb"""
+        print('redirect_uri', redirect_uri)
         query_params = dict(appKey=self.api_key, scope=",".join(scope), redirectUri=redirect_uri)
         if responseType:
             query_params["responseType"] = responseType
         return "https://%s/admin/oauth-web/#/oauth/authorize?%s" % (self.url, urllib.parse.urlencode(query_params))
-
 
     def get_by_net(self, url, data):
         timestamp = authorize.get_timestamp()
@@ -73,15 +74,7 @@ class Session(object):
         response = urllib.request.urlopen(request)
         return response
 
-
     def request_token(self, params):
-        """request token"""
-        if self.token:
-            return self.token
-
-        if not self.validate_params(params):
-            raise ValidationException("Invalid Sign: Possibly malicious login")
-
         code = params["code"]
 
         url = "https://%s/admin/oauth/token/create" % self.url
@@ -97,7 +90,31 @@ class Session(object):
                 # print(json_payload)
                 self.token = data["accessToken"]
                 self.access_scopes = data["scope"]
-                return self.token
+                self.expiration_time = data["expireTime"]
+                return self.token, self.access_scopes, self.expiration_time
+            else:
+                raise Exception("{}:{}".format(json_payload.get("i18nCode"), json_payload.get("message")))
+        else:
+            raise Exception(response.msg)
+
+    def create_token(self, params):
+        code = params["code"]
+
+        url = "https://%s/admin/oauth/token/create" % self.url
+
+        data = dict(code=code)
+
+        response = self.get_by_net(url, data)
+
+        if response.code == 200:
+            json_payload = json.loads(response.read().decode("utf-8"))
+            if json_payload.get("code") == 200:
+                data = json_payload.get("data", {})
+                # print(json_payload)
+                self.token = data["accessToken"]
+                self.access_scopes = data["scope"]
+                self.expiration_time = data["expireTime"]
+                return self.token, self.access_scopes, self.expiration_time
             else:
                 raise Exception("{}:{}".format(json_payload.get("i18nCode"), json_payload.get("message")))
         else:
@@ -116,12 +133,12 @@ class Session(object):
                 # print(json_payload)
                 self.token = data["accessToken"]
                 self.access_scopes = data["scope"]
-                return self.token
+                self.expiration_time = data["expireTime"]
+                return self.token, self.access_scopes, self.expiration_time
             else:
                 raise Exception("{}:{}".format(json_payload.get("i18nCode"), json_payload.get("message")))
         else:
             raise Exception(response.msg)
-
 
     def cancel(self):
         """
@@ -138,12 +155,12 @@ class Session(object):
                 # print(json_payload)
                 self.token = data["accessToken"]
                 self.access_scopes = data["scope"]
-                return self.token
+                self.expiration_time = data["expireTime"]
+                return self.token, self.access_scopes, self.expiration_time
             else:
                 raise Exception("{}:{}".format(json_payload.get("i18nCode"), json_payload.get("message")))
         else:
             raise Exception(response.msg)
-
 
     @classmethod
     def validate_token(cls, params):
@@ -152,9 +169,6 @@ class Session(object):
             return False
 
         return True
-
-
-
 
     @property
     def api_version(self):
